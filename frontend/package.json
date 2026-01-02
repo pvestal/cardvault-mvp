@@ -1,0 +1,25 @@
+{
+  "name": "cardvault-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0",
+    "pinia": "^2.1.0",
+    "axios": "^1.4.0",
+    "bwip-js": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.5",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "typescript": "^5.0.4",
+    "vite": "^4.3.9",
+    "vite-plugin-pwa": "^0.16.0",
+    "vue-tsc": "^1.6.5"
+  }
+}
