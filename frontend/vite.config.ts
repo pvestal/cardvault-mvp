@@ -50,6 +50,7 @@ export default defineConfig({
   },
   server: {
     port: 8082,
-    host: '127.0.0.1'
+    host: '127.0.0.1',
+    allowedHosts: ['vestal-garcia.duckdns.org', '192.168.50.135', 'localhost', '127.0.0.1']
   }
 })
