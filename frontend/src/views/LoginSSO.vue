@@ -101,11 +101,16 @@ onMounted(async () => {
   if (token && userStr) {
     try {
       const user = JSON.parse(decodeURIComponent(userStr));
-      authStore.setAuth({ user, token });
+
+      // Set user and token in auth store
+      authStore.user = user;
+      localStorage.setItem('cardvault_user', JSON.stringify(user));
+      localStorage.setItem('cardvault_token', token);
+
       router.replace('/');
     } catch (error) {
       console.error('Failed to parse SSO response:', error);
-      authStore.setError('Authentication failed. Please try again.');
+      authStore.error = 'Authentication failed. Please try again.';
     }
   }
 
@@ -142,10 +147,12 @@ const handleSubmit = async () => {
 };
 
 const loginWithGoogle = () => {
+  // CardVault's own Google OAuth endpoint
   window.location.href = '/api/cardvault/auth/google';
 };
 
 const loginWithApple = () => {
+  // CardVault's own Apple OAuth endpoint (when configured)
   window.location.href = '/api/cardvault/auth/apple';
 };
 </script>

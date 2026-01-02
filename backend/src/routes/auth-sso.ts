@@ -13,8 +13,13 @@ router.get('/google',
 );
 
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/cardvault/login?error=auth_failed' }),
+  passport.authenticate('google', {
+    failureRedirect: '/cardvault/login?error=auth_failed',
+    failureMessage: true
+  }),
   (req, res) => {
+    console.log('OAuth Success - User:', req.user);
+
     // Generate JWT token after successful authentication
     const user = req.user as any;
     const token = jwt.sign(
@@ -23,8 +28,10 @@ router.get('/google/callback',
       { expiresIn: '7d' }
     );
 
+    console.log('Generated token for user:', user.email);
+
     // Redirect to frontend with token
-    res.redirect(`/cardvault/?token=${token}&user=${encodeURIComponent(JSON.stringify({
+    res.redirect(`/cardvault/login?token=${token}&user=${encodeURIComponent(JSON.stringify({
       id: user.id,
       username: user.username || user.email,
       email: user.email,
