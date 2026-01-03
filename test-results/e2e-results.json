@@ -1,0 +1,36 @@
+Error: Cannot find module '@playwright/test'
+Require stack:
+- /opt/cardvault-mvp/playwright.config.ts
+- /home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/transform/transform.js
+- /home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/common/configLoader.js
+- /home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/program.js
+- /home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/cli.js
+    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Function.resolveFilename [as _resolveFilename] (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/transform/transform.js:240:36)
+    at Function.Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/opt/cardvault-mvp/playwright.config.ts:1:1)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module.newCompile2 (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/third_party/pirates.js:46:29)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Object.newLoader2 [as .ts] (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/third_party/pirates.js:52:22)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at requireOrImport (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/transform/transform.js:218:18)
+    at loadUserConfig (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/common/configLoader.js:107:89)
+    at loadConfig (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/common/configLoader.js:119:28)
+    at loadConfigFromFile (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/common/configLoader.js:331:10)
+    at runTests (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/program.js:197:18)
+    at r.<anonymous> (/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/program.js:70:7) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/opt/cardvault-mvp/playwright.config.ts',
+    '/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/transform/transform.js',
+    '/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/common/configLoader.js',
+    '/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/lib/program.js',
+    '/home/patrick/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/cli.js'
+  ]
+}

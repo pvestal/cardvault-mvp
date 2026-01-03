@@ -1,13 +1,9 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-import { Pool } from 'pg';
-
-dotenv.config();
+import { getPool } from '../db/connection';
 
 const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // Register new user
 router.post('/register', async (req, res) => {
@@ -21,6 +17,8 @@ router.post('/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
+
+    const pool = getPool();
 
     // Check if user exists
     const existingUser = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
@@ -56,6 +54,8 @@ router.post('/login', async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' });
     }
+
+    const pool = getPool();
 
     // Find user
     const result = await pool.query('SELECT id, username, password_hash FROM users WHERE username = $1', [username]);

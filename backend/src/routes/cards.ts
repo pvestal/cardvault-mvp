@@ -1,14 +1,13 @@
 import express from 'express';
-import { Pool } from 'pg';
 import { CryptoService } from '../services/crypto';
 import { authenticateToken } from '../middleware/auth';
+import { getPool } from '../db/connection';
 
 interface AuthRequest extends express.Request {
   userId?: string;
 }
 
 const router = express.Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // Lazy load crypto service to ensure env vars are loaded
 const getCrypto = () => new CryptoService();
@@ -19,6 +18,7 @@ router.use(authenticateToken);
 // Get all cards for user
 router.get('/', async (req: AuthRequest, res) => {
   try {
+    const pool = getPool();
     const result = await pool.query(`
       SELECT id, name, barcode_format, balance, notes, created_at
       FROM cards
@@ -37,6 +37,7 @@ router.get('/', async (req: AuthRequest, res) => {
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    const pool = getPool();
 
     const result = await pool.query(`
       SELECT id, name, card_number_enc, pin_enc, barcode_format, balance, notes, created_at
@@ -83,6 +84,7 @@ router.post('/', async (req: AuthRequest, res) => {
     const card_number_enc = crypto.encrypt(card_number);
     const pin_enc = pin ? crypto.encrypt(pin) : null;
 
+    const pool = getPool();
     const result = await pool.query(`
       INSERT INTO cards (user_id, name, card_number_enc, pin_enc, barcode_format, balance, notes)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -101,6 +103,8 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { name, card_number, pin, barcode_format, balance, notes } = req.body;
+
+    const pool = getPool();
 
     // Check if card exists and belongs to user
     const existingCard = await pool.query('SELECT id FROM cards WHERE id = $1 AND user_id = $2', [id, req.userId]);
@@ -142,6 +146,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
+    const pool = getPool();
     const result = await pool.query('DELETE FROM cards WHERE id = $1 AND user_id = $2', [id, req.userId]);
 
     if (result.rowCount === 0) {

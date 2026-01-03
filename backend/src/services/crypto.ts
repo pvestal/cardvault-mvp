@@ -17,9 +17,9 @@ export class CryptoService {
 
   /**
    * Encrypt sensitive data (card numbers, PINs)
-   * Returns: IV (16 bytes) + AuthTag (16 bytes) + Ciphertext
+   * Returns: base64 encoded string of IV + AuthTag + Ciphertext
    */
-  encrypt(plaintext: string): Buffer {
+  encrypt(plaintext: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, this.key, iv);
 
@@ -29,14 +29,16 @@ export class CryptoService {
     ]);
 
     const authTag = cipher.getAuthTag();
+    const combined = Buffer.concat([iv, authTag, encrypted]);
 
-    return Buffer.concat([iv, authTag, encrypted]);
+    return combined.toString('base64');
   }
 
   /**
-   * Decrypt sensitive data
+   * Decrypt sensitive data from base64 string
    */
-  decrypt(data: Buffer): string {
+  decrypt(encryptedData: string): string {
+    const data = Buffer.from(encryptedData, 'base64');
     const iv = data.subarray(0, IV_LENGTH);
     const authTag = data.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
     const ciphertext = data.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
@@ -44,6 +46,6 @@ export class CryptoService {
     const decipher = crypto.createDecipheriv(ALGORITHM, this.key, iv);
     decipher.setAuthTag(authTag);
 
-    return decipher.update(ciphertext) + decipher.final('utf8');
+    return decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8');
   }
 }

@@ -1,0 +1,91 @@
+name: CardVault Backend Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ 'backend/**' ]
+  pull_request:
+    branches: [ main, develop ]
+    paths: [ 'backend/**' ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: cardvault_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Run linting
+      working-directory: ./backend
+      run: npm run lint --if-present
+
+    - name: Run type checking
+      working-directory: ./backend
+      run: npx tsc --noEmit
+
+    - name: Run unit tests
+      working-directory: ./backend
+      run: npm run test:unit
+
+    - name: Run integration tests
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/cardvault_test
+        NODE_ENV: test
+      run: npm run test:integration
+
+    - name: Run full test suite with coverage
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/cardvault_test
+        NODE_ENV: test
+      run: npm run test:coverage
+
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == '20.x'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage/lcov.info
+        flags: backend
+        name: cardvault-backend
+        fail_ci_if_error: false
+
+    - name: Archive test results
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: |
+          backend/coverage/
+          backend/test-results.xml
