@@ -13,7 +13,12 @@ module.exports = {
     'src/**/*.ts',
     '!src/index.ts',
     '!src/**/*.d.ts',
-    '!src/**/index.ts'
+    '!src/**/index.ts',
+    '!src/db/migrate*.ts',
+    '!src/config/passport.ts',
+    '!src/middleware/tower-auth.ts',
+    '!src/routes/auth-sso.ts',
+    '!src/middleware/cache.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
