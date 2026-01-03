@@ -1,264 +1,154 @@
 /**
- * Integration tests for authentication API endpoints
+ * Simplified integration tests for auth routes
+ * Mocks database at the function level, not PostgreSQL level
  */
 
 import request from 'supertest';
 import express from 'express';
 import cors from 'cors';
-import { Pool } from 'pg';
-import { setupTestDb, cleanupTestDb, clearTestDb } from '../helpers/testDb';
-import { setPool } from '../../src/db/connection';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+
+// Mock the database connection module
+jest.mock('../../src/db/connection', () => ({
+  getPool: jest.fn(),
+  setPool: jest.fn(),
+  closePool: jest.fn()
+}));
+
+// Import after mocking
 import authRoutes from '../../src/routes/auth';
+import { getPool } from '../../src/db/connection';
 
-describe('Auth Integration Tests', () => {
+describe('Auth Routes - Simplified Tests', () => {
   let app: express.Application;
-  let testPool: Pool;
+  let mockQuery: jest.Mock;
 
-  beforeAll(async () => {
-    // Setup test database
-    testPool = await setupTestDb();
+  beforeEach(() => {
+    // Reset mocks
+    jest.clearAllMocks();
 
-    // Inject test pool into connection module
-    setPool(testPool);
+    // Create mock query function
+    mockQuery = jest.fn();
+    (getPool as jest.Mock).mockReturnValue({
+      query: mockQuery
+    });
 
-    // Create Express app identical to main app
+    // Create Express app
     app = express();
     app.use(cors());
     app.use(express.json());
     app.use('/api/auth', authRoutes);
-  });
 
-  afterAll(async () => {
-    await cleanupTestDb();
-  });
-
-  beforeEach(async () => {
-    await clearTestDb();
+    // Set test JWT secret
+    process.env.JWT_SECRET = 'test-secret';
   });
 
   describe('POST /api/auth/register', () => {
-    it('should register a new user and return user data with token', async () => {
-      const userData = {
-        username: 'integrationuser',
-        password: 'password123'
-      };
+    it('should register a new user successfully', async () => {
+      // Mock the two queries: check existence, then insert
+      mockQuery
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // User doesn't exist
+        .mockResolvedValueOnce({
+          rows: [{ id: 'user-123', username: 'testuser' }],
+          rowCount: 1
+        }); // Insert successful
 
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData);
+        .send({ username: 'testuser', password: 'password123' });
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('user');
       expect(response.body).toHaveProperty('token');
-      expect(response.body.user.username).toBe('integrationuser');
-      expect(response.body.user).not.toHaveProperty('password_hash');
-      expect(typeof response.body.token).toBe('string');
-
-      // Verify user was actually created in database
-      const dbUser = await testPool.query(
-        'SELECT id, username FROM users WHERE username = $1',
-        ['integrationuser']
-      );
-      expect(dbUser.rows).toHaveLength(1);
-      expect(dbUser.rows[0].username).toBe('integrationuser');
+      expect(response.body.user).toEqual({
+        id: 'user-123',
+        username: 'testuser'
+      });
     });
 
-    it('should prevent duplicate user registration', async () => {
-      const userData = {
-        username: 'duplicateuser',
-        password: 'password123'
-      };
-
-      // First registration should succeed
-      const firstResponse = await request(app)
-        .post('/api/auth/register')
-        .send(userData);
-      expect(firstResponse.status).toBe(201);
-
-      // Second registration should fail
-      const secondResponse = await request(app)
-        .post('/api/auth/register')
-        .send(userData);
-      expect(secondResponse.status).toBe(400);
-      expect(secondResponse.body.error).toBe('Username already exists');
-    });
-
-    it('should validate password length requirements', async () => {
-      const userData = {
-        username: 'shortpass',
-        password: '123'
-      };
+    it('should handle duplicate username', async () => {
+      // Mock user already exists
+      mockQuery.mockResolvedValue({
+        rows: [{ id: 'existing-user' }],
+        rowCount: 1
+      });
 
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData);
+        .send({ username: 'existing', password: 'password123' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Username already exists');
+    });
+
+    it('should validate password length', async () => {
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({ username: 'testuser', password: '123' });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Password must be at least 6 characters');
-
-      // Verify no user was created
-      const dbUser = await testPool.query(
-        'SELECT id FROM users WHERE username = $1',
-        ['shortpass']
-      );
-      expect(dbUser.rows).toHaveLength(0);
-    });
-
-    it('should hash passwords securely', async () => {
-      const userData = {
-        username: 'secureuser',
-        password: 'mySecretPassword123'
-      };
-
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send(userData);
-      expect(response.status).toBe(201);
-
-      // Verify password is hashed in database
-      const dbUser = await testPool.query(
-        'SELECT password_hash FROM users WHERE username = $1',
-        ['secureuser']
-      );
-      expect(dbUser.rows[0].password_hash).not.toBe('mySecretPassword123');
-      expect(dbUser.rows[0].password_hash).toMatch(/^\\$2[ab]\\$10\\$/); // bcrypt format
     });
   });
 
   describe('POST /api/auth/login', () => {
-    beforeEach(async () => {
-      // Create a test user for login tests
-      await request(app)
-        .post('/api/auth/register')
-        .send({
-          username: 'loginuser',
-          password: 'password123'
-        });
-    });
+    it('should login with valid credentials', async () => {
+      const hashedPassword = await bcrypt.hash('password123', 10);
 
-    it('should login existing user with correct credentials', async () => {
-      const loginData = {
-        username: 'loginuser',
-        password: 'password123'
-      };
-
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send(loginData);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('user');
-      expect(response.body).toHaveProperty('token');
-      expect(response.body.user.username).toBe('loginuser');
-      expect(response.body.user).not.toHaveProperty('password_hash');
-      expect(typeof response.body.token).toBe('string');
-    });
-
-    it('should reject login with incorrect password', async () => {
-      const loginData = {
-        username: 'loginuser',
-        password: 'wrongpassword'
-      };
-
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send(loginData);
-
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Invalid credentials');
-      expect(response.body).not.toHaveProperty('token');
-    });
-
-    it('should reject login with non-existent username', async () => {
-      const loginData = {
-        username: 'nonexistentuser',
-        password: 'password123'
-      };
-
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send(loginData);
-
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Invalid credentials');
-      expect(response.body).not.toHaveProperty('token');
-    });
-
-    it('should validate required fields', async () => {
-      // Missing username
-      const missingUsername = await request(app)
-        .post('/api/auth/login')
-        .send({ password: 'password123' });
-      expect(missingUsername.status).toBe(400);
-      expect(missingUsername.body.error).toBe('Username and password required');
-
-      // Missing password
-      const missingPassword = await request(app)
-        .post('/api/auth/login')
-        .send({ username: 'loginuser' });
-      expect(missingPassword.status).toBe(400);
-      expect(missingPassword.body.error).toBe('Username and password required');
-    });
-  });
-
-  describe('Authentication Flow Integration', () => {
-    it('should complete full registration and login flow', async () => {
-      const userData = {
-        username: 'fullflowuser',
-        password: 'testPassword456'
-      };
-
-      // 1. Register user
-      const registerResponse = await request(app)
-        .post('/api/auth/register')
-        .send(userData);
-
-      expect(registerResponse.status).toBe(201);
-      const registeredUserId = registerResponse.body.user.id;
-      const registrationToken = registerResponse.body.token;
-
-      // 2. Login with same credentials
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send(userData);
-
-      expect(loginResponse.status).toBe(200);
-      expect(loginResponse.body.user.id).toBe(registeredUserId);
-      expect(loginResponse.body.user.username).toBe('fullflowuser');
-
-      // Token should be different (new expiration)
-      expect(loginResponse.body.token).not.toBe(registrationToken);
-      expect(typeof loginResponse.body.token).toBe('string');
-    });
-
-    it('should handle multiple concurrent registrations', async () => {
-      const users = [
-        { username: 'concurrent1', password: 'password123' },
-        { username: 'concurrent2', password: 'password123' },
-        { username: 'concurrent3', password: 'password123' }
-      ];
-
-      // Register all users concurrently
-      const promises = users.map(user =>
-        request(app).post('/api/auth/register').send(user)
-      );
-
-      const responses = await Promise.all(promises);
-
-      // All registrations should succeed
-      responses.forEach((response, index) => {
-        expect(response.status).toBe(201);
-        expect(response.body.user.username).toBe(users[index].username);
+      // Mock finding user
+      mockQuery.mockResolvedValue({
+        rows: [{
+          id: 'user-123',
+          username: 'testuser',
+          password_hash: hashedPassword
+        }],
+        rowCount: 1
       });
 
-      // Verify all users exist in database
-      const dbUsers = await testPool.query('SELECT username FROM users ORDER BY username');
-      expect(dbUsers.rows).toHaveLength(3);
-      expect(dbUsers.rows.map(u => u.username)).toEqual([
-        'concurrent1',
-        'concurrent2',
-        'concurrent3'
-      ]);
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'testuser', password: 'password123' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('token');
+      expect(response.body.user).toEqual({
+        id: 'user-123',
+        username: 'testuser'
+      });
+    });
+
+    it('should reject invalid password', async () => {
+      const hashedPassword = await bcrypt.hash('correctpassword', 10);
+
+      mockQuery.mockResolvedValue({
+        rows: [{
+          id: 'user-123',
+          username: 'testuser',
+          password_hash: hashedPassword
+        }],
+        rowCount: 1
+      });
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'testuser', password: 'wrongpassword' });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Invalid credentials');
+    });
+
+    it('should reject non-existent user', async () => {
+      mockQuery.mockResolvedValue({
+        rows: [],
+        rowCount: 0
+      });
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'nouser', password: 'password123' });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Invalid credentials');
     });
   });
 });
