@@ -8,8 +8,10 @@ import { getPool, setPool, closePool } from '../../../src/db/connection';
 // Mock pg module
 jest.mock('pg', () => ({
   Pool: jest.fn(() => ({
-    end: jest.fn().mockResolvedValue(undefined),
+    end: jest.fn(() => Promise.resolve()),
     query: jest.fn(),
+    connect: jest.fn(),
+    on: jest.fn()
   })),
 }));
 
@@ -56,23 +58,34 @@ describe('Database Connection', () => {
 
   describe('closePool', () => {
     it('should close the pool if it exists', async () => {
-      const pool = getPool();
-      await closePool();
+      const mockEnd = jest.fn(() => Promise.resolve());
+      const mockPool = {
+        end: mockEnd,
+        query: jest.fn(),
+      };
+      setPool(mockPool as any);
 
-      expect(pool.end).toHaveBeenCalled();
+      await closePool();
+      expect(mockEnd).toHaveBeenCalled();
     });
 
     it('should handle closing when no pool exists', async () => {
+      setPool(undefined as any);
       await expect(closePool()).resolves.toBeUndefined();
     });
 
     it('should clear the pool reference after closing', async () => {
-      getPool(); // Create a pool
+      const mockPool = {
+        end: jest.fn(() => Promise.resolve()),
+        query: jest.fn(),
+      };
+      setPool(mockPool as any);
+
       await closePool();
 
-      // Getting pool after close should create a new one
+      // After closing, getPool should create a new pool
       const newPool = getPool();
-      expect(Pool).toHaveBeenCalledTimes(2);
+      expect(newPool).not.toBe(mockPool);
     });
   });
 });

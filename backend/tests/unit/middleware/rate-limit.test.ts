@@ -8,7 +8,7 @@ import { rateLimiter, apiRateLimit, authRateLimit } from '../../../src/middlewar
 describe('Rate Limit Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let mockNext: NextFunction;
+  let mockNext: jest.Mock;
 
   beforeEach(() => {
     mockRequest = {
